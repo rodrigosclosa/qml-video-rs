@@ -141,7 +141,7 @@ private:
     // Guardados porque setUrl() recria o mdk::Player e perde a trilha externa.
     QUrl m_externalAudioUrl;
     double m_externalAudioOffset{0.0};
-    void applyExternalAudio();
+    void applyExternalAudio(bool reload, bool immediate = false);
     QHash<QString, QString> m_defaultProperties;
     std::atomic<bool> m_shuttingDown{false};
 };

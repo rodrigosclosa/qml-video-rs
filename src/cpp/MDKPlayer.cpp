@@ -165,7 +165,7 @@ void MDKPlayer::setUrl(const QUrl &url, const QString &customDecoder) {
     m_player->setMedia(qUtf8Printable(path));
     // setMedia() resets external tracks, so the audio one must be re-applied
     // here, before prepare(), as MDK requires.
-    applyExternalAudio();
+    applyExternalAudio(true, true);
     m_player->prepare();
 }
 
@@ -188,7 +188,7 @@ float MDKPlayer::getVolume() { return m_player? m_player->volume() : 0.0; }
 // MDK has no audio delay API, so the offset is applied with an avfilter:
 // `atrim` cuts the start of the track, `adelay` pushes it forward. The
 // property takes effect immediately while playing.
-void MDKPlayer::applyExternalAudio() {
+void MDKPlayer::applyExternalAudio(bool reload, bool immediate) {
     if (!m_player) return;
 
     if (m_externalAudioUrl.isEmpty()) {
@@ -203,9 +203,28 @@ void MDKPlayer::applyExternalAudio() {
                                                          : QString::fromUtf8(m_externalAudioUrl.toEncoded());
     qDebug2("externalAudio") << "External audio:" << path << "offset:" << m_externalAudioOffset;
 
-    m_player->setMedia(qUtf8Printable(path), mdk::MediaType::Audio);
-    // 0 is the first track of the newly set audio file.
-    m_player->setActiveTracks(mdk::MediaType::Audio, { 0 });
+    // setMedia() opens and demuxes the file synchronously, which on some
+    // backends blocks for a noticeable time - it must only run when the track
+    // actually changes, never on an offset tweak.
+    if (reload) {
+        const QString mediaPath = path;
+        const auto setAudioTrack = [this, mediaPath] {
+            if (!m_player || m_shuttingDown) return;
+            m_player->setMedia(qUtf8Printable(mediaPath), mdk::MediaType::Audio);
+            // 0 is the first track of the newly set audio file.
+            m_player->setActiveTracks(mdk::MediaType::Audio, { 0 });
+        };
+        if (immediate || !m_item) {
+            // setUrl() needs the track in place before prepare(), so there it
+            // cannot be deferred.
+            setAudioTrack();
+        } else {
+            // Deferred to the next event loop iteration so the caller returns at
+            // once and the window can repaint: on macOS this call reconfigures
+            // the AVFoundation audio unit and waits on the CoreAudio daemon.
+            QTimer::singleShot(0, m_item, setAudioTrack);
+        }
+    }
 
     // Offset convention is `t_audio = t_video + offset`. Positive means video
     // time 0 maps further into the track, so its start is dropped; negative
@@ -222,23 +241,25 @@ void MDKPlayer::applyExternalAudio() {
 }
 
 void MDKPlayer::setExternalAudio(const QUrl &url, double offsetSeconds) {
+    const bool sameTrack = (url == m_externalAudioUrl);
     m_externalAudioUrl = url;
     m_externalAudioOffset = offsetSeconds;
-    applyExternalAudio();
+    applyExternalAudio(!sameTrack);
 }
 
 void MDKPlayer::setExternalAudioOffset(double offsetSeconds) {
     if (qFuzzyCompare(m_externalAudioOffset + 1.0, offsetSeconds + 1.0)) return;
     m_externalAudioOffset = offsetSeconds;
     if (m_externalAudioUrl.isEmpty()) return;
-    applyExternalAudio();
+    // Only the filter changes: reloading the file here is what froze the UI.
+    applyExternalAudio(false);
 }
 
 void MDKPlayer::clearExternalAudio() {
     if (m_externalAudioUrl.isEmpty()) return;
     m_externalAudioUrl = QUrl();
     m_externalAudioOffset = 0.0;
-    applyExternalAudio();
+    applyExternalAudio(true);
 }
 
 void MDKPlayer::setupNode(QSGImageNode *node, QQuickItem *item) {
