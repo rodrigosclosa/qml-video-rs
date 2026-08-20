@@ -88,6 +88,22 @@ impl MDKPlayerWrapper {
         })
     }
 
+    pub fn set_external_audio(&mut self, url: QUrl, offset_seconds: f64) {
+        cpp!(unsafe [self as "MDKPlayerWrapper *", url as "QUrl", offset_seconds as "double"] {
+            self->mdkplayer->setExternalAudio(url, offset_seconds);
+        })
+    }
+    pub fn set_external_audio_offset(&mut self, offset_seconds: f64) {
+        cpp!(unsafe [self as "MDKPlayerWrapper *", offset_seconds as "double"] {
+            self->mdkplayer->setExternalAudioOffset(offset_seconds);
+        })
+    }
+    pub fn clear_external_audio(&mut self) {
+        cpp!(unsafe [self as "MDKPlayerWrapper *"] {
+            self->mdkplayer->clearExternalAudio();
+        })
+    }
+
     pub fn set_rotation(&self, v: i32) {
         cpp!(unsafe [self as "MDKPlayerWrapper *", v as "int"] {
             return self->mdkplayer->setRotation(v);

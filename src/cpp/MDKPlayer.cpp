@@ -163,6 +163,9 @@ void MDKPlayer::setUrl(const QUrl &url, const QString &customDecoder) {
     }
     qDebug2("setUrl") << "Final url:" << path;
     m_player->setMedia(qUtf8Printable(path));
+    // setMedia() resets external tracks, so the audio one must be re-applied
+    // here, before prepare(), as MDK requires.
+    applyExternalAudio();
     m_player->prepare();
 }
 
@@ -181,6 +184,62 @@ bool MDKPlayer::getMuted() { return m_player? m_player->isMute() : false; }
 
 void MDKPlayer::setVolume(float v) { if (m_player) m_player->setVolume(v); }
 float MDKPlayer::getVolume() { return m_player? m_player->volume() : 0.0; }
+
+// MDK has no audio delay API, so the offset is applied with an avfilter:
+// `atrim` cuts the start of the track, `adelay` pushes it forward. The
+// property takes effect immediately while playing.
+void MDKPlayer::applyExternalAudio() {
+    if (!m_player) return;
+
+    if (m_externalAudioUrl.isEmpty()) {
+        m_player->setProperty("audio.avfilter", "");
+        // Empty url falls back to the audio tracks of the video itself.
+        m_player->setMedia("", mdk::MediaType::Audio);
+        m_player->setActiveTracks(mdk::MediaType::Audio, { 0 });
+        return;
+    }
+
+    const QString path = m_externalAudioUrl.isLocalFile()? m_externalAudioUrl.toLocalFile()
+                                                         : QString::fromUtf8(m_externalAudioUrl.toEncoded());
+    qDebug2("externalAudio") << "External audio:" << path << "offset:" << m_externalAudioOffset;
+
+    m_player->setMedia(qUtf8Printable(path), mdk::MediaType::Audio);
+    // 0 is the first track of the newly set audio file.
+    m_player->setActiveTracks(mdk::MediaType::Audio, { 0 });
+
+    // Offset convention is `t_audio = t_video + offset`. Positive means video
+    // time 0 maps further into the track, so its start is dropped; negative
+    // means the track comes in later and the gap is silence.
+    QString filter;
+    const double ms = m_externalAudioOffset * 1000.0;
+    if (ms > 0.5) {
+        filter = QStringLiteral("atrim=start=%1,asetpts=PTS-STARTPTS").arg(m_externalAudioOffset, 0, 'f', 6);
+    } else if (ms < -0.5) {
+        // `all=1` aplica o mesmo atraso a todos os canais.
+        filter = QStringLiteral("adelay=delays=%1:all=1").arg(qRound64(-ms));
+    }
+    m_player->setProperty("audio.avfilter", toStdString(filter));
+}
+
+void MDKPlayer::setExternalAudio(const QUrl &url, double offsetSeconds) {
+    m_externalAudioUrl = url;
+    m_externalAudioOffset = offsetSeconds;
+    applyExternalAudio();
+}
+
+void MDKPlayer::setExternalAudioOffset(double offsetSeconds) {
+    if (qFuzzyCompare(m_externalAudioOffset + 1.0, offsetSeconds + 1.0)) return;
+    m_externalAudioOffset = offsetSeconds;
+    if (m_externalAudioUrl.isEmpty()) return;
+    applyExternalAudio();
+}
+
+void MDKPlayer::clearExternalAudio() {
+    if (m_externalAudioUrl.isEmpty()) return;
+    m_externalAudioUrl = QUrl();
+    m_externalAudioOffset = 0.0;
+    applyExternalAudio();
+}
 
 void MDKPlayer::setupNode(QSGImageNode *node, QQuickItem *item) {
     m_node = node;

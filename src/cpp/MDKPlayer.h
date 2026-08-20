@@ -38,6 +38,12 @@ public:
     void setMuted(bool v);
     bool getMuted();
 
+    // External audio track, e.g. from a separate recorder. The offset is
+    // applied with an avfilter, the source file is never modified.
+    void setExternalAudio(const QUrl &url, double offsetSeconds);
+    void setExternalAudioOffset(double offsetSeconds);
+    void clearExternalAudio();
+
     void setVolume(float v);
     float getVolume();
 
@@ -132,6 +138,10 @@ private:
     QSGImageNode *m_node{nullptr};
     QUrl m_pendingUrl;
     QString m_pendingCustomDecoder;
+    // Guardados porque setUrl() recria o mdk::Player e perde a trilha externa.
+    QUrl m_externalAudioUrl;
+    double m_externalAudioOffset{0.0};
+    void applyExternalAudio();
     QHash<QString, QString> m_defaultProperties;
     std::atomic<bool> m_shuttingDown{false};
 };

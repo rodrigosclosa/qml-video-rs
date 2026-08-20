@@ -63,6 +63,10 @@ pub struct MDKVideoItem {
     pub volume: qt_property!(f32; READ getVolume WRITE setVolume NOTIFY volumeChanged),
     pub volumeChanged: qt_signal!(),
 
+    pub setExternalAudio:       qt_method!(fn(&mut self, url: QUrl, offset_seconds: f64)),
+    pub setExternalAudioOffset: qt_method!(fn(&mut self, offset_seconds: f64)),
+    pub clearExternalAudio:     qt_method!(fn(&mut self)),
+
     pub videoWidth: qt_property!(u32; NOTIFY metadataChanged),
     pub videoHeight: qt_property!(u32; NOTIFY metadataChanged),
 
@@ -170,6 +174,10 @@ impl MDKVideoItem {
 
     pub fn setVolume(&mut self, v: f32) { self.m_player.set_volume(v); self.volumeChanged(); }
     pub fn getVolume(&self) -> f32 { self.m_player.get_volume() }
+
+    pub fn setExternalAudio(&mut self, url: QUrl, offset_seconds: f64) { self.m_player.set_external_audio(url, offset_seconds); }
+    pub fn setExternalAudioOffset(&mut self, offset_seconds: f64) { self.m_player.set_external_audio_offset(offset_seconds); }
+    pub fn clearExternalAudio(&mut self) { self.m_player.clear_external_audio(); }
 
     fn frameRendered(&mut self, ts: f64, frame: i32) {
         let nts = ts.max(0.0);
