@@ -193,9 +193,18 @@ void MDKPlayer::applyExternalAudio(bool reload, bool immediate) {
 
     if (m_externalAudioUrl.isEmpty()) {
         m_player->setProperty("audio.avfilter", "");
-        // Empty url falls back to the audio tracks of the video itself.
-        m_player->setMedia("", mdk::MediaType::Audio);
-        m_player->setActiveTracks(mdk::MediaType::Audio, { 0 });
+        // Empty url falls back to the audio tracks of the video itself. This is
+        // a setMedia() call like any other, so it gets the same deferral.
+        const auto restoreInternalAudio = [this] {
+            if (!m_player || m_shuttingDown) return;
+            m_player->setMedia("", mdk::MediaType::Audio);
+            m_player->setActiveTracks(mdk::MediaType::Audio, { 0 });
+        };
+        if (immediate || !m_item) {
+            restoreInternalAudio();
+        } else {
+            QTimer::singleShot(0, m_item, restoreInternalAudio);
+        }
         return;
     }
 
@@ -226,18 +235,11 @@ void MDKPlayer::applyExternalAudio(bool reload, bool immediate) {
         }
     }
 
-    // Offset convention is `t_audio = t_video + offset`. Positive means video
-    // time 0 maps further into the track, so its start is dropped; negative
-    // means the track comes in later and the gap is silence.
-    QString filter;
-    const double ms = m_externalAudioOffset * 1000.0;
-    if (ms > 0.5) {
-        filter = QStringLiteral("atrim=start=%1,asetpts=PTS-STARTPTS").arg(m_externalAudioOffset, 0, 'f', 6);
-    } else if (ms < -0.5) {
-        // `all=1` aplica o mesmo atraso a todos os canais.
-        filter = QStringLiteral("adelay=delays=%1:all=1").arg(qRound64(-ms));
-    }
-    m_player->setProperty("audio.avfilter", toStdString(filter));
+    // No avfilter is used to shift the track: the ffmpeg builds shipped with
+    // players like Gyroflow are often reduced and lack `asetpts`/`adelay`, and a
+    // missing filter breaks the whole graph. The caller is expected to hand over
+    // a file that is already aligned.
+    m_player->setProperty("audio.avfilter", "");
 }
 
 void MDKPlayer::setExternalAudio(const QUrl &url, double offsetSeconds) {
