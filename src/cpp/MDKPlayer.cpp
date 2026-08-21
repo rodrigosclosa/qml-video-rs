@@ -193,18 +193,11 @@ void MDKPlayer::applyExternalAudio(bool reload, bool immediate) {
 
     if (m_externalAudioUrl.isEmpty()) {
         m_player->setProperty("audio.avfilter", "");
-        // Empty url falls back to the audio tracks of the video itself. This is
-        // a setMedia() call like any other, so it gets the same deferral.
-        const auto restoreInternalAudio = [this] {
-            if (!m_player || m_shuttingDown) return;
-            m_player->setMedia("", mdk::MediaType::Audio);
-            m_player->setActiveTracks(mdk::MediaType::Audio, { 0 });
-        };
-        if (immediate || !m_item) {
-            restoreInternalAudio();
-        } else {
-            QTimer::singleShot(0, m_item, restoreInternalAudio);
-        }
+        // Selecting the track is cheap; setMedia("") is not - it tears down and
+        // rebuilds the audio device, which on macOS waits on the CoreAudio
+        // daemon and blocks the window. Track 0 of the video is the internal
+        // audio, and it is what should play once the external one is gone.
+        m_player->setActiveTracks(mdk::MediaType::Audio, { 0 });
         return;
     }
 
