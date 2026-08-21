@@ -210,11 +210,19 @@ void MDKPlayer::applyExternalAudio(bool reload, bool immediate) {
     // actually changes, never on an offset tweak.
     if (reload) {
         const QString mediaPath = path;
-        const auto setAudioTrack = [this, mediaPath] {
+        const bool reprepare = m_videoLoaded;
+        const auto setAudioTrack = [this, mediaPath, reprepare] {
             if (!m_player || m_shuttingDown) return;
             m_player->setMedia(qUtf8Printable(mediaPath), mdk::MediaType::Audio);
             // 0 is the first track of the newly set audio file.
             m_player->setActiveTracks(mdk::MediaType::Audio, { 0 });
+            // MDK only demuxes an external track during prepare(). Setting one on
+            // an already prepared player registers it but never opens it: no sound
+            // comes out, and playback stutters on the half-configured pipeline.
+            // Re-preparing from the current position picks it up without moving
+            // the playhead. In setUrl() the caller's own prepare() does this, so
+            // it must not be duplicated here.
+            if (reprepare) m_player->prepare(m_player->position());
         };
         if (immediate || !m_item) {
             // setUrl() needs the track in place before prepare(), so there it
