@@ -245,6 +245,19 @@ void MDKPlayer::setExternalAudio(const QUrl &url, double offsetSeconds) {
     applyExternalAudio(!sameTrack);
 }
 
+// Records the track without touching the player, so the next setUrl() picks it
+// up in the one sequence MDK accepts: setMedia() -> track -> prepare().
+//
+// Attaching a track to an already prepared player does not work: MDK only
+// demuxes external tracks during prepare(), so the track is registered but never
+// opened - silence, plus stuttering playback on the half-configured pipeline.
+// Calling prepare() again to force it is worse: it reloads the media, dropping
+// the playback range and leaving the player stuck.
+void MDKPlayer::stageExternalAudio(const QUrl &url, double offsetSeconds) {
+    m_externalAudioUrl = url;
+    m_externalAudioOffset = offsetSeconds;
+}
+
 void MDKPlayer::setExternalAudioOffset(double offsetSeconds) {
     if (qFuzzyCompare(m_externalAudioOffset + 1.0, offsetSeconds + 1.0)) return;
     m_externalAudioOffset = offsetSeconds;

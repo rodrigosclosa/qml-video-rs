@@ -41,6 +41,7 @@ public:
     // External audio track, e.g. from a separate recorder. The offset is
     // applied with an avfilter, the source file is never modified.
     void setExternalAudio(const QUrl &url, double offsetSeconds);
+    void stageExternalAudio(const QUrl &url, double offsetSeconds);
     void setExternalAudioOffset(double offsetSeconds);
     void clearExternalAudio();
 

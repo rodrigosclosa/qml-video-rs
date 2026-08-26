@@ -64,6 +64,7 @@ pub struct MDKVideoItem {
     pub volumeChanged: qt_signal!(),
 
     pub setExternalAudio:       qt_method!(fn(&mut self, url: QUrl, offset_seconds: f64)),
+    pub stageExternalAudio:     qt_method!(fn(&mut self, url: QUrl, offset_seconds: f64)),
     pub setExternalAudioOffset: qt_method!(fn(&mut self, offset_seconds: f64)),
     pub clearExternalAudio:     qt_method!(fn(&mut self)),
 
@@ -176,6 +177,7 @@ impl MDKVideoItem {
     pub fn getVolume(&self) -> f32 { self.m_player.get_volume() }
 
     pub fn setExternalAudio(&mut self, url: QUrl, offset_seconds: f64) { self.m_player.set_external_audio(url, offset_seconds); }
+    pub fn stageExternalAudio(&mut self, url: QUrl, offset_seconds: f64) { self.m_player.stage_external_audio(url, offset_seconds); }
     pub fn setExternalAudioOffset(&mut self, offset_seconds: f64) { self.m_player.set_external_audio_offset(offset_seconds); }
     pub fn clearExternalAudio(&mut self) { self.m_player.clear_external_audio(); }
 

@@ -93,6 +93,11 @@ impl MDKPlayerWrapper {
             self->mdkplayer->setExternalAudio(url, offset_seconds);
         })
     }
+    pub fn stage_external_audio(&mut self, url: QUrl, offset_seconds: f64) {
+        cpp!(unsafe [self as "MDKPlayerWrapper *", url as "QUrl", offset_seconds as "double"] {
+            self->mdkplayer->stageExternalAudio(url, offset_seconds);
+        })
+    }
     pub fn set_external_audio_offset(&mut self, offset_seconds: f64) {
         cpp!(unsafe [self as "MDKPlayerWrapper *", offset_seconds as "double"] {
             self->mdkplayer->setExternalAudioOffset(offset_seconds);
