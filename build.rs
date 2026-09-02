@@ -53,12 +53,21 @@ fn main() {
     let arch_win = if target_arch == "aarch64" { "arm64" } else { "x64" };
     let arch_lnx = if target_arch == "aarch64" { "arm64" } else { "amd64" };
 
+    // Pinned to a release rather than the SourceForge "latest": MDK 0.38.0
+    // breaks the external audio track. After setMedia(url, MediaType::Audio)
+    // it keeps seeking the audio reader backwards and never plays a sample,
+    // while 0.35.1 plays it fine. The nightly feature keeps its old source.
+    let release = "https://github.com/wang-bin/mdk-sdk/releases/download/v0.35.1";
+    let url = |name: &str| -> String {
+        if nightly.is_empty() { format!("{release}/{name}") }
+        else { format!("https://master.dl.sourceforge.net/project/mdk-sdk/{nightly}{name}?viasf=1") }
+    };
     let sdk: HashMap<&str, (String, String, &str, &str)> = vec![
-        ("windows",  (format!("https://master.dl.sourceforge.net/project/mdk-sdk/{}mdk-sdk-windows-clang.7z?viasf=1", nightly),  format!("lib/{arch_win}/"),    "mdk.lib",    "include/")),
-        ("linux",    (format!("https://master.dl.sourceforge.net/project/mdk-sdk/{}mdk-sdk-linux.tar.xz?viasf=1", nightly),              format!("lib/{arch_lnx}/"),    "libmdk.so",  "include/")),
-        ("macos",    (format!("https://master.dl.sourceforge.net/project/mdk-sdk/{}mdk-sdk-macOS.tar.xz?viasf=1", nightly),              format!("lib/mdk.framework/"), "mdk",        "include/")),
-        ("android",  (format!("https://master.dl.sourceforge.net/project/mdk-sdk/{}mdk-sdk-android.7z?viasf=1", nightly),                format!("lib/arm64-v8a/"),     "libmdk.so",  "include/")),
-        ("ios",      (format!("https://master.dl.sourceforge.net/project/mdk-sdk/{}mdk-sdk-iOS.tar.xz?viasf=1", nightly),                format!("lib/mdk.framework/"), "mdk",        "include/")),
+        ("windows",  (url("mdk-sdk-windows-desktop-clang.7z"), format!("lib/{arch_win}/"),    "mdk.lib",    "include/")),
+        ("linux",    (url("mdk-sdk-linux.tar.xz"),             format!("lib/{arch_lnx}/"),    "libmdk.so",  "include/")),
+        ("macos",    (url("mdk-sdk-macOS.tar.xz"),             format!("lib/mdk.framework/"), "mdk",        "include/")),
+        ("android",  (url("mdk-sdk-android.7z"),               format!("lib/arm64-v8a/"),     "libmdk.so",  "include/")),
+        ("ios",      (url("mdk-sdk-iOS.tar.xz"),               format!("lib/mdk.framework/"), "mdk",        "include/")),
     ].into_iter().collect();
 
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
