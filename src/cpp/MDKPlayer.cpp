@@ -192,6 +192,7 @@ void MDKPlayer::applyExternalAudio(bool reload, bool immediate) {
     if (!m_player) return;
 
     if (m_externalAudioUrl.isEmpty()) {
+        qDebug2("externalAudio") << "no external audio: back to track 0";
         m_player->setProperty("audio.avfilter", "");
         // Selecting the track is cheap; setMedia("") is not - it tears down and
         // rebuilds the audio device, which on macOS waits on the CoreAudio
@@ -632,11 +633,13 @@ void MDKPlayer::sync(QSGImageNode *node, QSize newSize, QQuickItem *item, bool f
 
 void MDKPlayer::play() {
     if (!m_videoLoaded || !m_player) return;
+    qDebug2("state") << "play() at" << m_player->position();
     m_player->set(mdk::PlaybackState::Playing);
     forceRedraw();
 }
 void MDKPlayer::pause() {
     if (!m_videoLoaded || !m_player) return;
+    qDebug2("state") << "pause() at" << m_player->position();
     m_player->set(mdk::PlaybackState::Paused);
     forceRedraw();
 }
@@ -654,14 +657,18 @@ void MDKPlayer::setFrameRate(float fps) {
 void MDKPlayer::seekToTimestamp(float timestampMs, bool exact) {
     if (!m_videoLoaded || !m_player) return;
 
-    m_player->seek(timestampMs, (exact? mdk::SeekFlag::FromStart : mdk::SeekFlag::FromStart | mdk::SeekFlag::KeyFrame) | mdk::SeekFlag::InCache);
+    qDebug2("seek") << "seekToTimestamp" << timestampMs << "exact:" << exact;
+    m_player->seek(timestampMs, (exact? mdk::SeekFlag::FromStart : mdk::SeekFlag::FromStart | mdk::SeekFlag::KeyFrame) | mdk::SeekFlag::InCache,
+                   [timestampMs](int64_t r) { qDebug2("seek") << "seekToTimestamp" << timestampMs << "result:" << r; });
     forceRedraw();
 }
 
 void MDKPlayer::seekToFrameDelta(int64_t frameDelta) {
     if (!m_videoLoaded || !m_player) return;
 
-    m_player->seek(frameDelta, mdk::SeekFlag::FromNow | mdk::SeekFlag::Frame | mdk::SeekFlag::InCache);
+    qDebug2("seek") << "seekToFrameDelta" << frameDelta;
+    m_player->seek(frameDelta, mdk::SeekFlag::FromNow | mdk::SeekFlag::Frame | mdk::SeekFlag::InCache,
+                   [frameDelta](int64_t r) { qDebug2("seek") << "seekToFrameDelta" << frameDelta << "result:" << r; });
     forceRedraw();
 }
 

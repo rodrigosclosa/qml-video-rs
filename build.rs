@@ -53,17 +53,21 @@ fn main() {
     let arch_win = if target_arch == "aarch64" { "arm64" } else { "x64" };
     let arch_lnx = if target_arch == "aarch64" { "arm64" } else { "amd64" };
 
-    // Pinned to a release rather than the SourceForge "latest": MDK 0.38.0
-    // breaks the external audio track. After setMedia(url, MediaType::Audio)
-    // it keeps seeking the audio reader backwards and never plays a sample,
-    // while 0.35.1 plays it fine. The nightly feature keeps its old source.
-    let release = "https://github.com/wang-bin/mdk-sdk/releases/download/v0.35.1";
+    // Pinned to a GitHub release rather than the SourceForge "latest": that
+    // one is a rolling build, and the 0.38.0 rolling build of 2026-09-02 (git
+    // 744fc5b) broke the external audio track - it kept seeking the audio
+    // reader backwards and never played a sample - while the tagged v0.38.0
+    // (git 6c92f5a) plays it fine. Note that the v0.38.0 release still ships a
+    // legacy `mdk-sdk-windows-desktop-clang.7z` whose content is 0.35.1; the
+    // current Windows package is `mdk-sdk-windows-clang.7z`. The nightly
+    // feature keeps its SourceForge source.
+    let release = "https://github.com/wang-bin/mdk-sdk/releases/download/v0.38.0";
     let url = |name: &str| -> String {
         if nightly.is_empty() { format!("{release}/{name}") }
         else { format!("https://master.dl.sourceforge.net/project/mdk-sdk/{nightly}{name}?viasf=1") }
     };
     let sdk: HashMap<&str, (String, String, &str, &str)> = vec![
-        ("windows",  (url("mdk-sdk-windows-desktop-clang.7z"), format!("lib/{arch_win}/"),    "mdk.lib",    "include/")),
+        ("windows",  (url("mdk-sdk-windows-clang.7z"), format!("lib/{arch_win}/"),    "mdk.lib",    "include/")),
         ("linux",    (url("mdk-sdk-linux.tar.xz"),             format!("lib/{arch_lnx}/"),    "libmdk.so",  "include/")),
         ("macos",    (url("mdk-sdk-macOS.tar.xz"),             format!("lib/mdk.framework/"), "mdk",        "include/")),
         ("android",  (url("mdk-sdk-android.7z"),               format!("lib/arm64-v8a/"),     "libmdk.so",  "include/")),
