@@ -92,7 +92,13 @@ void MDKPlayer::destroyPlayer() {
         m_player->onEvent([](const mdk::MediaEvent &) -> bool { return false; });
         m_player->onFrame<mdk::VideoFrame>([](mdk::VideoFrame&, int) -> int { return 0; });
         auto ptr = m_player.release();
-        QTimer::singleShot(1000, [ptr] { delete ptr; }); // delete later
+        // Deleted off the GUI thread: MDK 0.38 can deadlock in ~Player when the audio
+        // decoder is waiting in LoopControl::ensureRange, and a stuck delete there froze
+        // the whole app. If it hangs now, only this thread does.
+        std::thread([ptr] {
+            std::this_thread::sleep_for(std::chrono::seconds(1)); // delete later
+            delete ptr;
+        }).detach();
     }
 }
 
